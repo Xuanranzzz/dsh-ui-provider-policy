@@ -1,0 +1,8 @@
+# The dsh-ui-provider-policy bundle patch: one Loader row that adds the
+# provider-policy browser plugin to the web roster. The row's `name` is the
+# package the node half of dsh-client-modules serves at
+# /plugins/dsh-ui-provider-policy/client.js (the URL derives from `name`,
+# not from `id`).
+- insert:
+    - id: ui-provider-policy
+      name: 'dsh-ui-provider-policy'
