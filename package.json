@@ -1,7 +1,7 @@
 {
   "name": "dsh-ui-provider-policy",
   "description": "Dedicated Settings section for pi-ai provider policy: default reasoning, retry policy (QUOTA-aware), developer-role compat, and per-model reasoning levels",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

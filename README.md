@@ -27,6 +27,25 @@ dsh plugin --profile web add link:C:/path/to/dsh-ui-provider-policy
 
 安装后重启 `dsh web`,浏览器打开 http://127.0.0.1:3080 → 设置 → 供应商策略。
 
+## 兼容性
+
+已在 **dsh 0.1.5-rc.1** 上逐项核对通过(2026-09-10),无需改动代码:
+
+| 本插件依赖 | 0.1.5-rc.1 |
+| --- | --- |
+| `settings.section` 插槽(`kind: list`,`id` / `order` / `label`) | 不变 |
+| 六个服务:`slots` / `locale` / `remote` / `remote.settings` / `settingsScope` / `settingsSchema` | 不变 |
+| `settingsScope.describe()` → `ensure()` / `getSnapshot()`(`view.namespaces` / `view.writable`) | 不变 |
+| `settingsSchema.getPath(value, path)` | 不变 |
+| `remote.settings.mutate(ns, ops, revision)` → `{ ok, error: { code, message } }`,含 `settings/conflict` | 不变 |
+| `remote.$on("settings/document-updated")` | 不变 |
+| 平台 seed word `react` / `react/jsx-runtime` | 不变 |
+| 写入的 `llm-pi-ai` schema:`reasoning`、`compat.supportsDeveloperRole`、`models[].reasoningEfforts`(仍是 7 级)、`retryPolicy`(`mode` / `maxRetries` / `retryableCodes` / `backoff`) | 全部仍合法 |
+
+上游「模型」页在 0.1.5-rc.1 中仍然**刻意**不提供推理强度控件(effort 属于按模型的能力,而供应商级控件只能被设成部分模型会拒绝的值),所以本插件补的这几项仍然缺失。
+
+English: Verified against dsh 0.1.5-rc.1 — every slot, service, event, transport call, platform seed word, and settings-schema field this plugin uses is unchanged, so no code change is required.
+
 ## 文件
 
 | 文件 | 作用 |
