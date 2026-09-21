@@ -20,8 +20,10 @@ English: A DeepSeek Harness (dsh) plugin that adds a dedicated "Provider Policy"
 
 ### Windows 一键安装(双击即可)
 
-双击仓库根目录的 `install.cmd`。它只依赖已有的 Node.js / dsh:
+双击仓库根目录的 `install.cmd`(它调用 Windows 自带的 PowerShell 执行 `install.ps1`,不引入任何第三方依赖)。安装器只依赖已有的 Node.js / dsh:
 
+- `install.cmd` 是**纯 ASCII** 启动器:Win10 的 cmd 解析含 UTF-8 中文的批处理会在代码页切换时错位,把后续行读成乱码命令,所以启动器刻意不含任何非 ASCII 字节,在任何 Windows 版本/代码页下解析一致
+- `install.ps1`(UTF-8 带 BOM,中文界面)才是安装本体,由 Windows 10/11 自带的 PowerShell 5.1 执行
 - 自检 Node.js;`dsh` 不在 PATH 时自动改用 `npx -y @deepseek-ai/dsh`
 - 自检 pnpm(缺失时先用 Node 自带的 corepack 启用,仍不行才 `npm install -g pnpm`)
 - 让你选择安装源:`[1]` 本地当前目录(link:,默认)/ `[2]` GitHub 仓库 / `[3]` 手动输入插件目录(可直接粘贴带引号的路径)
@@ -82,4 +84,5 @@ English: Verified against dsh 0.1.5-rc.2 — every slot, service, event, transpo
 | `cordis.patch.yml` | 一行 Loader 条目,URL `/plugins/dsh-ui-provider-policy/client.js` 由包名派生 |
 | `lib/index.js` | 服务端 no-op 入口 |
 | `lib/client.js` | 面板本体:注册 `settings.section` 插槽,读写 `llm-pi-ai` 命名空间,内置重试预览 SVG |
-| `install.cmd` | Windows 双击即装的一键安装脚本(纯 cmd + Node 自带工具,无第三方依赖) |
+| `install.cmd` | Windows 双击即装的启动器(纯 ASCII,任何代码页下解析一致) |
+| `install.ps1` | 安装本体(PowerShell 5.1+,UTF-8 带 BOM,中文界面;Win10/11 自带,无额外依赖) |

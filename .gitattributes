@@ -1,2 +1,3 @@
-# install.cmd is a Windows batch file: keep CRLF on every checkout/archive.
+# Windows installer files: keep CRLF on every checkout/archive.
 install.cmd text eol=crlf
+install.ps1 text eol=crlf
