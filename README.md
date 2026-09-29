@@ -45,9 +45,28 @@ dsh plugin --profile web add link:C:/path/to/dsh-ui-provider-policy
 
 安装后重启 `dsh web`,浏览器打开 http://127.0.0.1:3080 → 设置 → 供应商策略。
 
+### DSH 桌面端
+
+桌面端**不读取 `web` profile**:它固定启动保留 profile `desktop`(目录 `~/.dsh/profiles/desktop`),所以要在桌面端里用,必须把插件单独装进这个 profile。
+
+插件本身不需要为桌面端改任何东西:桌面端渲染的就是同一套 Web 前端(宿主进程加载 `@deepseek-ai/dsh-web-app`,在 127.0.0.1:19387 上服务),客户端的 `dsh.client.platform = "web"` 门槛照样通过。
+
+PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "desktop" is managed exclusively by the Electron application`),必须用桌面端自带的 CLI —— 它自带 pnpm,不依赖 PATH 里的 Node/pnpm:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" `
+  plugin --profile desktop add link:C:/path/to/dsh-ui-provider-policy
+```
+
+一键安装器同样支持:先 `set DSH_PROFILE=desktop` 再双击 `install.cmd`,它会自动改用桌面端自带的 CLI(并跳过 Node / pnpm 自检)。
+
+装完**必须完全退出桌面端再重新打开**(只关窗口不算):bundle 列表只在启动时组合,运行中的宿主不会认出新插件。重启后打开 **设置 → 供应商策略**。
+
 ## 兼容性
 
 已在 **dsh 0.1.5-rc.2** 上核对通过(2026-09-20):把 rc.1 与 rc.2 的 npm 产物逐包下载后做 SHA1 比对,本插件触及的 20 个包(`dsh` / `dsh-client-modules` / `dsh-client-ui-settings` / `dsh-client-ui-settings-general` / `dsh-client-ui-settings-models` / `dsh-client-ui-settings-plugins` / `dsh-client-ui-model-selection` / `dsh-client-locale` / `dsh-api-remotes` / `dsh-api-settings-controller` / `dsh-settings` / `dsh-settings-file` / `dsh-base` / `dsh-web-app` / `dsh-app-boot` / `dsh-llm` / `dsh-llm-pi-ai` / `dsh-llm-retry` / `dsh-agent-default-model` / `dsh-web-frontend`)**除 package.json 的版本号与 Web 前端 dist 资源哈希外逐字节相同**,所以 rc.1 → rc.2 不需要改任何代码;本次 0.2.0 是新增功能,不是被迫适配。
+
+已在 **dsh 0.2.0-rc.2**(DSH 官方桌面端自带的运行时)上核对:桌面端仍提供本插件依赖的 `settings.section` 插槽、`configForms` / `settingsSchema` / `remote.settings` 服务与 `window.__ModuleLoader__.load({id, factory})` 协议,插件在其中照常挂载(桌面端安装见上一节)。
 
 | 本插件依赖 | 0.1.5-rc.2 |
 | --- | --- |

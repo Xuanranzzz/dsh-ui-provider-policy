@@ -10,6 +10,8 @@ $REPO = 'github:Xuanranzzz/dsh-ui-provider-policy'
 if ($env:DSH_PROFILE) { $PROFILE = $env:DSH_PROFILE } else { $PROFILE = 'web' }
 if ($env:DSH_HOME) { $HOME_DIR = $env:DSH_HOME } else { $HOME_DIR = Join-Path $env:USERPROFILE '.dsh' }
 $PLUGIN_DIR = $PSScriptRoot
+# 桌面端固定使用 ~/.dsh/profiles/desktop,只有桌面端自带的 CLI 有权管理它。
+$IS_DESKTOP = ($PROFILE -eq 'desktop')
 
 function Fail([string]$Message) {
     Write-Host ''
@@ -17,6 +19,22 @@ function Fail([string]$Message) {
     Write-Host ''
     Read-Host '按回车键退出'
     exit 1
+}
+
+# 找到桌面端自带、且被授权管理保留 profile 的 dsh CLI。
+function Find-DesktopCli {
+    if ($env:DSH_DESKTOP_CLI -and (Test-Path $env:DSH_DESKTOP_CLI)) { return $env:DSH_DESKTOP_CLI }
+    $candidates = New-Object System.Collections.ArrayList
+    if ($env:LOCALAPPDATA) { [void]$candidates.Add((Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd')) }
+    if ($env:ProgramFiles) { [void]$candidates.Add((Join-Path $env:ProgramFiles 'DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd')) }
+    if (${env:ProgramFiles(x86)}) { [void]$candidates.Add((Join-Path ${env:ProgramFiles(x86)} 'DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd')) }
+    foreach ($cli in $candidates) { if (Test-Path $cli) { return $cli } }
+    return $null
+}
+
+# 目标 profile 的清单路径(安装前后都用它定位 profile)。
+function Profile-Manifest {
+    return (Join-Path $HOME_DIR (Join-Path 'profiles' (Join-Path $PROFILE 'package.json')))
 }
 
 Write-Host ''
@@ -28,35 +46,48 @@ Write-Host ('  插件目录     : ' + $PLUGIN_DIR)
 Write-Host ''
 
 # ---- 1. 运行环境自检 --------------------------------------------------------
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    Fail '未找到 Node.js。请先安装 Node.js 18 或更高版本后重试。下载: https://nodejs.org/'
-}
-Write-Host ('[OK] Node.js ' + (& node --version))
-
 $dshExe = 'dsh'
 $dshArgs = @()
-if (Get-Command dsh -ErrorAction SilentlyContinue) {
-    Write-Host '[OK] 已找到 dsh 命令'
-} elseif (Get-Command npx -ErrorAction SilentlyContinue) {
-    $dshExe = 'npx'
-    $dshArgs = @('-y', '@deepseek-ai/dsh')
-    Write-Host '[..] PATH 中没有 dsh,改用 npx 临时调用 @deepseek-ai/dsh'
+if ($IS_DESKTOP) {
+    # 桌面端 profile 是保留 profile:PATH 里的 dsh / npx 会被明确拒绝,
+    # 只能用桌面端自带的 CLI(它自带 pnpm,不依赖 PATH 里的 Node/pnpm)。
+    $dshExe = Find-DesktopCli
+    if (-not $dshExe) {
+        Fail '未找到 DSH 桌面端自带的 CLI。请确认已安装官方桌面端,或把 $env:DSH_DESKTOP_CLI 指向 <安装目录>\resources\runtime\cli\bin\dsh.cmd。'
+    }
+    Write-Host ('[OK] 使用桌面端自带 CLI: ' + $dshExe)
+    if (-not (Test-Path (Profile-Manifest))) {
+        Fail '桌面端 profile 还没有初始化:请先启动一次 DSH 桌面端,完全退出后再运行本安装器。'
+    }
 } else {
-    Fail 'PATH 中既没有 dsh 也没有 npx,请先安装 Node.js/npm 后重试。'
-}
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        Fail '未找到 Node.js。请先安装 Node.js 18 或更高版本后重试。下载: https://nodejs.org/'
+    }
+    Write-Host ('[OK] Node.js ' + (& node --version))
 
-if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-    Write-Host '[..] 未找到 pnpm,尝试用 Node 自带的 corepack 启用...'
-    try { & corepack enable pnpm *> $null } catch {}
+    if (Get-Command dsh -ErrorAction SilentlyContinue) {
+        Write-Host '[OK] 已找到 dsh 命令'
+    } elseif (Get-Command npx -ErrorAction SilentlyContinue) {
+        $dshExe = 'npx'
+        $dshArgs = @('-y', '@deepseek-ai/dsh')
+        Write-Host '[..] PATH 中没有 dsh,改用 npx 临时调用 @deepseek-ai/dsh'
+    } else {
+        Fail 'PATH 中既没有 dsh 也没有 npx,请先安装 Node.js/npm 后重试。'
+    }
+
     if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-        Write-Host '[..] corepack 未生效,改用 npm 全局安装 pnpm...'
-        try { & npm install -g pnpm *> $null } catch {}
+        Write-Host '[..] 未找到 pnpm,尝试用 Node 自带的 corepack 启用...'
+        try { & corepack enable pnpm *> $null } catch {}
         if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-            Fail 'pnpm 仍不可用,请手动执行 "npm install -g pnpm" 后重试。'
+            Write-Host '[..] corepack 未生效,改用 npm 全局安装 pnpm...'
+            try { & npm install -g pnpm *> $null } catch {}
+            if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+                Fail 'pnpm 仍不可用,请手动执行 "npm install -g pnpm" 后重试。'
+            }
         }
     }
+    Write-Host '[OK] pnpm 可用'
 }
-Write-Host '[OK] pnpm 可用'
 Write-Host ''
 
 # ---- 2. 选择安装源 ----------------------------------------------------------
@@ -128,7 +159,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # ---- 3. 结果校验 ------------------------------------------------------------
-$manifest = Join-Path $HOME_DIR (Join-Path 'profiles' (Join-Path $PROFILE 'package.json'))
+$manifest = Profile-Manifest
 $depOk = $false
 $bundleOk = $false
 try {
@@ -150,10 +181,16 @@ Write-Host ''
 Write-Host ('=' * 60)
 Write-Host ('  [OK] 安装完成,插件已写入 profile "' + $PROFILE + '"')
 Write-Host ('=' * 60)
-Write-Host '  请手动重启 dsh 使其生效:'
-Write-Host '    1) 关闭当前运行的 dsh(Ctrl+C 或直接关窗口)'
-Write-Host '    2) 重新运行: dsh web'
-Write-Host '  然后打开 http://127.0.0.1:3080 -> 设置 -> 供应商策略'
+if ($IS_DESKTOP) {
+    Write-Host '  请完全退出 DSH 桌面端再重新打开(只关窗口不算退出):'
+    Write-Host '    重启后新的插件组合才会生效'
+    Write-Host '  然后 打开桌面端 -> 设置 -> 供应商策略'
+} else {
+    Write-Host '  请手动重启 dsh 使其生效:'
+    Write-Host '    1) 关闭当前运行的 dsh(Ctrl+C 或直接关窗口)'
+    Write-Host '    2) 重新运行: dsh web'
+    Write-Host '  然后打开 http://127.0.0.1:3080 -> 设置 -> 供应商策略'
+}
 Write-Host ''
 Read-Host '按回车键退出'
 exit 0
