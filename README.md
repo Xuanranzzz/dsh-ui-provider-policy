@@ -9,12 +9,12 @@ DeepSeek Harness (dsh) 插件:在 WebUI 设置里新增一个专属的「供应�
   - **激进**:重试次数**锁定 1000 次**(输入框禁用,不可调整),退避固定为 **1s → 2s → 4s → 上限 5s**,并关闭随机抖动
 - **重试预览(函数图,自适配)**:按当前策略与次数绘制 dsh **真实**的退避函数 —— 横轴是重试次数、纵轴是该次重试的等待时间,曲线下面积即累计等待;坐标轴单位(ms / s / min / h)、网格与采样点随参数自动缩放(上千次重试自动抽样,不会画出 1000 个点),并标出「第 N 次起 X(封顶)」的拐点与累计总时长
 - **Developer 角色三态**(自动 / 启用 / 禁用)
-- **所有模型默认开启思考**:保存时给每个供应商的每个模型写入全量 `reasoningEfforts`,使对话里模型下拉框的思考等级菜单**常驻**
+- **模型默认开启思考**:保存时只给尚未单独配置 `reasoningEfforts` 的模型补齐全量等级,使对话里模型下拉框的思考等级菜单**常驻**;0.2.1 起「模型」页可按模型编辑思考等级,已单独配置的模型不会被覆盖
 - **思考等级在对话里选**:对话模型下拉框逐次选择(`off` / 跟随供应商默认 / 任一等级),「跟随默认」即「默认推理强度」;选 `off` 则关闭思考
 
-所有改动通过 `settings.mutate` 以路径级 ops 写入 `llm-pi-ai` 命名空间,不触碰其他字段;面板数据在 `settings/document-updated` 推送时自动刷新(有未保存编辑时不打扰)。插件不改 dsh 安装树内任何文件,更新 dsh 后无需重打补丁。
+所有改动通过 `settings.mutate` 以路径级 ops 写入 `llm-pi-ai` 命名空间内的策略字段与缺失的模型思考等级,不触碰其他命名空间;面板数据在 `settings/document-updated` 推送时自动刷新(有未保存编辑时不打扰)。插件不改 dsh 安装树内任何文件,更新 dsh 后无需重打补丁。
 
-English: A DeepSeek Harness (dsh) plugin that adds a dedicated "Provider Policy" section to the WebUI Settings, exposing pi-ai provider fields the stock Models page omits: a single global policy (default reasoning + retry strategy + developer-role compat) applied to every OpenAI-compatible (pi-ai) provider and all of its models. The retry strategy is either "standard" (editable count, each provider keeps its own backoff) or "aggressive" (count locked at 1000, waits 1s/2s/4s then a 5s cap, jitter off), and a self-scaling inline SVG preview plots the very backoff function the host runs — wait per retry against retry number, with the area under the curve equal to the cumulative wait. All models get thinking enabled (full reasoningEfforts) so the chat dialog's model dropdown always shows the reasoning menu.
+English: A DeepSeek Harness (dsh) plugin that adds a dedicated "Provider Policy" section to the WebUI Settings, exposing pi-ai provider fields the stock Models page omits: a single global policy (default reasoning + retry strategy + developer-role compat) applied to every OpenAI-compatible (pi-ai) provider and all of its models. The retry strategy is either "standard" (editable count, each provider keeps its own backoff) or "aggressive" (count locked at 1000, waits 1s/2s/4s then a 5s cap, jitter off), and a self-scaling inline SVG preview plots the very backoff function the host runs — wait per retry against retry number, with the area under the curve equal to the cumulative wait. Models without their own reasoningEfforts get the full level map, so the chat dialog's model dropdown always shows the reasoning menu; models configured individually are left untouched.
 
 ## 安装
 
@@ -49,7 +49,7 @@ dsh plugin --profile web add link:C:/path/to/dsh-ui-provider-policy
 
 桌面端**不读取 `web` profile**:它固定启动保留 profile `desktop`(目录 `~/.dsh/profiles/desktop`),所以要在桌面端里用,必须把插件单独装进这个 profile。
 
-插件本身不需要为桌面端改任何东西:桌面端渲染的就是同一套 Web 前端(宿主进程加载 `@deepseek-ai/dsh-web-app`,在 127.0.0.1:19387 上服务),客户端的 `dsh.client.platform = "web"` 门槛照样通过。
+插件本身不需要为桌面端改任何东西:桌面端渲染的就是同一套 Web 前端(宿主进程加载 `@deepseek-ai/dsh-web-app`,0.2.1 起在系统分配的本地端口上服务),客户端的 `dsh.client.platform = "web"` 门槛照样通过。
 
 PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "desktop" is managed exclusively by the Electron application`),必须用桌面端自带的 CLI —— 它自带 pnpm,不依赖 PATH 里的 Node/pnpm:
 
@@ -60,7 +60,7 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 
 一键安装器同样支持:先 `set DSH_PROFILE=desktop` 再双击 `install.cmd`,它会自动改用桌面端自带的 CLI(并跳过 Node / pnpm 自检)。
 
-装完**必须完全退出桌面端再重新打开**(只关窗口不算):bundle 列表只在启动时组合,运行中的宿主不会认出新插件。重启后打开 **设置 → 供应商策略**。
+首次安装需**完全退出桌面端再重新打开**(只关窗口不算):bundle 列表只在启动时组合,运行中的宿主不会认出新插件。0.2.1 起已启用插件的更新支持依赖同步与热重载,无法热重载的变更仍会提示重启。重启后打开 **设置 → 供应商策略**。
 
 ## 兼容性
 
@@ -68,11 +68,13 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 
 已在 **dsh 0.2.0-rc.2**(DSH 官方桌面端自带的运行时)上核对:桌面端仍提供本插件依赖的 `settings.section` 插槽、`configForms` / `settingsSchema` / `remote.settings` 服务与 `window.__ModuleLoader__.load({id, factory})` 协议,插件在其中照常挂载(桌面端安装见上一节)。
 
-| 本插件依赖 | 0.1.5-rc.2 |
+已在 **dsh 0.2.1-rc.2**(DSH 官方桌面端自带运行时,2026-10-17)上核对:逐包比对 0.2.0-rc.2 → 0.2.1-rc.2 的 npm 产物并实测挂载,本插件依赖的插槽 / 服务 / 事件 / 客户端模块协议与 `llm-pi-ai` schema 全部未变,插件面板正常显示与保存。`package.json` 声明 `engines.dsh: ">=0.1.7-rc.2 <0.3.0"`:0.2.1 起兼容性检查优先读取该区间,未声明时才回退到 `peerDependencies`。
+
+| 本插件依赖 | 0.2.1-rc.2 |
 | --- | --- |
 | `settings.section` 插槽(`kind: list`,`id` / `order` / `label`) | 不变 |
-| 六个服务:`slots` / `locale` / `remote` / `remote.settings` / `settingsScope` / `settingsSchema` | 不变 |
-| `settingsScope.describe()` → `ensure()` / `getSnapshot()`(`view.namespaces` / `view.writable`) | 不变 |
+| 六个服务:`slots` / `locale` / `remote` / `remote.settings` / `configForms` / `settingsSchema` | 不变 |
+| `configForms.describe()` → `ensure()` / `getSnapshot()`(`view.namespaces` / `view.writable`) | 不变 |
 | `settingsSchema.getPath(value, path)` | 不变 |
 | `remote.settings.mutate(ns, ops, revision)` → `{ ok, error: { code, message } }`,含 `settings/conflict` | 不变 |
 | `remote.$on("settings/document-updated")` | 不变 |
@@ -80,9 +82,9 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 | 平台 seed word `react` / `react/jsx-runtime` | 不变 |
 | 写入的 `llm-pi-ai` schema:`reasoning`、`compat.supportsDeveloperRole`、`models[].reasoningEfforts`(仍是 7 级)、`retryPolicy`(`mode` / `maxRetries` / `retryableCodes` / `backoff`) | 全部仍合法 |
 
-上游「模型」页在 0.1.5-rc.2 中仍然**刻意**不提供推理强度与重试策略控件(effort 属于按模型的能力,而供应商级控件只能被设成部分模型会拒绝的值),所以本插件补的这几项仍然缺失。
+上游「模型」页在 0.2.1 中为自定义供应商的每个模型提供 Reasoning levels(`models[].reasoningEfforts`)编辑,但仍**刻意**不提供供应商级推理强度、重试策略与 Developer 角色控件(推理等级属于按模型的能力,而供应商级控件只能被设成部分模型会拒绝的值)。本插件补的正是这些供应商级策略;补默认思考等级时,已单独配置过的模型保持原样。
 
-English: Verified against dsh 0.1.5-rc.2 — every slot, service, event, transport call, client-module protocol field, and settings-schema field this plugin uses is unchanged (the rc.1 and rc.2 npm artifacts differ only in package.json version strings and rebuilt web-frontend assets).
+English: Verified against dsh 0.1.5-rc.2, 0.2.0-rc.2 and 0.2.1-rc.2 — every slot, service, event, transport call, client-module protocol field, and settings-schema field this plugin uses is unchanged; from 0.2.1 the stock Models page edits per-model reasoningEfforts, so this plugin only fills models that have no explicit level map. `engines.dsh` declares the supported DSH range.
 
 ## 重试语义
 
