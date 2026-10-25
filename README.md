@@ -70,7 +70,9 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 
 已在 **dsh 0.2.1-rc.2**(DSH 官方桌面端自带运行时,2026-10-17)上核对:逐包比对 0.2.0-rc.2 → 0.2.1-rc.2 的 npm 产物并实测挂载,本插件依赖的插槽 / 服务 / 事件 / 客户端模块协议与 `llm-pi-ai` schema 全部未变,插件面板正常显示与保存。`package.json` 声明 `engines.dsh: ">=0.1.7-rc.2 <0.3.0"`:0.2.1 起兼容性检查优先读取该区间,未声明时才回退到 `peerDependencies`。
 
-| 本插件依赖 | 0.2.1-rc.2 |
+已在 **dsh 0.2.1-rc.3**(DSH 官方桌面端自带运行时,2026-10-23)上核对:rc.2 → rc.3 仅有导航「更多」菜单、埋点与 DeepSeek 官方 `/models` 列表等新增改动,本插件依赖的插槽 / 服务 / 事件 / 客户端模块协议与 `llm-pi-ai` schema 全部未变;实机验证设置分区正常显示、读值正确(保存链路的 `settings.mutate` 接口未变,本次未改动保存态)。
+
+| 本插件依赖 | 0.2.1-rc.3 |
 | --- | --- |
 | `settings.section` 插槽(`kind: list`,`id` / `order` / `label`) | 不变 |
 | 六个服务:`slots` / `locale` / `remote` / `remote.settings` / `configForms` / `settingsSchema` | 不变 |
@@ -84,7 +86,7 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 
 上游「模型」页在 0.2.1 中为自定义供应商的每个模型提供 Reasoning levels(`models[].reasoningEfforts`)编辑,但仍**刻意**不提供供应商级推理强度、重试策略与 Developer 角色控件(推理等级属于按模型的能力,而供应商级控件只能被设成部分模型会拒绝的值)。本插件补的正是这些供应商级策略;补默认思考等级时,已单独配置过的模型保持原样。
 
-English: Verified against dsh 0.1.5-rc.2, 0.2.0-rc.2 and 0.2.1-rc.2 — every slot, service, event, transport call, client-module protocol field, and settings-schema field this plugin uses is unchanged; from 0.2.1 the stock Models page edits per-model reasoningEfforts, so this plugin only fills models that have no explicit level map. `engines.dsh` declares the supported DSH range.
+English: Verified against dsh 0.1.5-rc.2, 0.2.0-rc.2, 0.2.1-rc.2 and 0.2.1-rc.3 — every slot, service, event, transport call, client-module protocol field, and settings-schema field this plugin uses is unchanged; from 0.2.1 the stock Models page edits per-model reasoningEfforts, so this plugin only fills models that have no explicit level map. `engines.dsh` declares the supported DSH range.
 
 ## 重试语义
 
