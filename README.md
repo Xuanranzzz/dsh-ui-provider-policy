@@ -1,20 +1,27 @@
 # dsh-ui-provider-policy
 
-DeepSeek Harness (dsh) 插件:在 WebUI 设置里新增一个专属的「供应商策略」分区,为 OpenAI 兼容(pi-ai)第三方供应商补上原生「模型」页缺失的配置控件:
+DeepSeek Harness (dsh) 插件:在 WebUI 设置里新增一个专属的「供应商策略」分区,为 OpenAI 兼容(pi-ai)第三方供应商补上原生「模型」页缺失的**供应商级**配置控件:
 
 - **全局供应商策略**:一套「默认推理强度 + 重试策略 + Developer 角色」,保存时应用到**所有** OpenAI 兼容(pi-ai)供应商及其全部模型(不再按供应商/按模型分别配置)
-- **默认推理强度**(off / minimal / low / medium / high / xhigh / max,7 级)—— 决定模型默认打开的推理等级
+- **默认推理强度**(off / minimal / low / medium / high / xhigh / max,7 级,另可留空 = 供应商默认)—— 决定模型默认打开的推理等级;对话里仍可逐次选择
 - **重试策略选择**:
   - **标准**:重试次数可调;沿用各供应商自己的可重试错误码与退避参数(没有策略时补全量 6 码含 QUOTA 与默认退避)
   - **激进**:重试次数**锁定 1000 次**(输入框禁用,不可调整),退避固定为 **1s → 2s → 4s → 上限 5s**,并关闭随机抖动
 - **重试预览(函数图,自适配)**:按当前策略与次数绘制 dsh **真实**的退避函数 —— 横轴是重试次数、纵轴是该次重试的等待时间,曲线下面积即累计等待;坐标轴单位(ms / s / min / h)、网格与采样点随参数自动缩放(上千次重试自动抽样,不会画出 1000 个点),并标出「第 N 次起 X(封顶)」的拐点与累计总时长
 - **Developer 角色三态**(自动 / 启用 / 禁用)
-- **模型默认开启思考**:保存时只给尚未单独配置 `reasoningEfforts` 的模型补齐全量等级,使对话里模型下拉框的思考等级菜单**常驻**;0.2.1 起「模型」页可按模型编辑思考等级,已单独配置的模型不会被覆盖
-- **思考等级在对话里选**:对话模型下拉框逐次选择(`off` / 跟随供应商默认 / 任一等级),「跟随默认」即「默认推理强度」;选 `off` 则关闭思考
+- **不再写模型级思考等级**:0.3.0 起只写供应商级字段;模型级「推理等级」交给官方「模型」页(0.2.1 起支持按模型自定义),插件不再向 `models[].reasoningEfforts` 补全任何等级
 
-所有改动通过 `settings.mutate` 以路径级 ops 写入 `llm-pi-ai` 命名空间内的策略字段与缺失的模型思考等级,不触碰其他命名空间;面板数据在 `settings/document-updated` 推送时自动刷新(有未保存编辑时不打扰)。插件不改 dsh 安装树内任何文件,更新 dsh 后无需重打补丁。
+面板样式对齐原生设置页:标题 / 说明 / 行内布局、卡片描边、分段控件与保存按钮都使用 dsh 语义 token,明暗主题自动适配。
 
-English: A DeepSeek Harness (dsh) plugin that adds a dedicated "Provider Policy" section to the WebUI Settings, exposing pi-ai provider fields the stock Models page omits: a single global policy (default reasoning + retry strategy + developer-role compat) applied to every OpenAI-compatible (pi-ai) provider and all of its models. The retry strategy is either "standard" (editable count, each provider keeps its own backoff) or "aggressive" (count locked at 1000, waits 1s/2s/4s then a 5s cap, jitter off), and a self-scaling inline SVG preview plots the very backoff function the host runs — wait per retry against retry number, with the area under the curve equal to the cumulative wait. Models without their own reasoningEfforts get the full level map, so the chat dialog's model dropdown always shows the reasoning menu; models configured individually are left untouched.
+所有改动通过 `settings.mutate` 以路径级 ops 只写入 `llm-pi-ai` 命名空间内的供应商级策略字段(`reasoning` / `retryPolicy` / `compat.supportsDeveloperRole`),不触碰 `models` 与任何其他命名空间;面板数据在 `settings/document-updated` 推送时自动刷新(有未保存编辑时不打扰)。插件不改 dsh 安装树内任何文件,更新 dsh 后无需重打补丁。
+
+English: A DeepSeek Harness (dsh) plugin that adds a dedicated "Provider Policy" section to the WebUI Settings, exposing the provider-level pi-ai fields the stock Models page omits: one global policy (default reasoning + retry strategy + developer-role compat) applied to every OpenAI-compatible (pi-ai) provider and all of its models. The retry strategy is either "standard" (editable count; each provider keeps its own backoff) or "aggressive" (count locked at 1000, waits 1s/2s/4s then a 5s cap, jitter off), and a self-scaling inline SVG preview plots the very backoff function the host runs. Since 0.3.0 the plugin **never writes model rows**: per-model reasoning levels are edited on the stock Models page (available since dsh 0.2.1), so the panel only writes provider-level policy fields.
+
+## 0.3.0 变更(重要)
+
+- 移除「模型默认开启思考」:过去保存时会为没有 `reasoningEfforts` 的模型补齐全量等级,让对话里的思考等级菜单常驻。dsh 0.2.1 起官方「模型」页已支持按模型**自定义推理等级**(开关 + 任意等级/取值行),这份补全不再必要,且会覆盖模型自身的能力声明。
+- 现在保存**只写供应商级字段**,`models` 数组原样保留。历史上已被补全的模型不会自动清理:需要清除时到「模型」页把该模型的「推理等级」开关关掉(或删掉对应行)即可;不清除也仍可正常工作。
+- 面板重构:策略拼装抽成纯函数 `policyOps`(只产出供应商级路径),重试预览的数学生成、样式表、行 / 控件 / 卡片组件分层;视觉对齐原生设置页。
 
 ## 安装
 
@@ -68,9 +75,9 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 
 已在 **dsh 0.2.0-rc.2**(DSH 官方桌面端自带的运行时)上核对:桌面端仍提供本插件依赖的 `settings.section` 插槽、`configForms` / `settingsSchema` / `remote.settings` 服务与 `window.__ModuleLoader__.load({id, factory})` 协议,插件在其中照常挂载(桌面端安装见上一节)。
 
-已在 **dsh 0.2.1-rc.2**(DSH 官方桌面端自带运行时,2026-10-17)上核对:逐包比对 0.2.0-rc.2 → 0.2.1-rc.2 的 npm 产物并实测挂载,本插件依赖的插槽 / 服务 / 事件 / 客户端模块协议与 `llm-pi-ai` schema 全部未变,插件面板正常显示与保存。`package.json` 声明 `engines.dsh: ">=0.1.7-rc.2 <0.3.0"`:0.2.1 起兼容性检查优先读取该区间,未声明时才回退到 `peerDependencies`。
+已在 **dsh 0.2.1-rc.2 / 0.2.1-rc.3**(DSH 官方桌面端自带运行时)上核对:逐包比对 npm 产物并实测挂载,本插件依赖的插槽 / 服务 / 事件 / 客户端模块协议与 `llm-pi-ai` schema(供应商级 `reasoning`、`retryPolicy`、`compat.supportsDeveloperRole`,`models[].reasoningEfforts` 仍为 7 级)全部未变;`package.json` 声明 `engines.dsh: ">=0.1.7-rc.2 <0.3.0"`(0.2.1 起兼容性检查优先读取该区间,未声明时才回退到 `peerDependencies`)。
 
-已在 **dsh 0.2.1-rc.3**(DSH 官方桌面端自带运行时,2026-10-23)上核对:rc.2 → rc.3 仅有导航「更多」菜单、埋点与 DeepSeek 官方 `/models` 列表等新增改动,本插件依赖的插槽 / 服务 / 事件 / 客户端模块协议与 `llm-pi-ai` schema 全部未变;实机验证设置分区正常显示、读值正确(保存链路的 `settings.mutate` 接口未变,本次未改动保存态)。
+**0.3.0** 于 **2026-10-27** 在 **dsh 0.2.1-rc.3** 桌面端实机回归:设置分区正常显示、读值正确、保存链路成功;`cordis.patch.yml` 保存前后逐字节相同(策略未变),且保存不再写 `models`。上游「模型」页已提供按模型自定义推理等级(Reasoning levels)的开关与行编辑器,因此插件移除了原先的等级补全逻辑。
 
 | 本插件依赖 | 0.2.1-rc.3 |
 | --- | --- |
@@ -82,11 +89,10 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 | `remote.$on("settings/document-updated")` | 不变 |
 | 客户端模块协议 `window.__ModuleLoader__.load({ id, factory })` / `dsh.client` 字段 | 不变 |
 | 平台 seed word `react` / `react/jsx-runtime` | 不变 |
-| 写入的 `llm-pi-ai` schema:`reasoning`、`compat.supportsDeveloperRole`、`models[].reasoningEfforts`(仍是 7 级)、`retryPolicy`(`mode` / `maxRetries` / `retryableCodes` / `backoff`) | 全部仍合法 |
+| 写入的 `llm-pi-ai` schema:`reasoning`、`compat.supportsDeveloperRole`、`retryPolicy`(`mode` / `maxRetries` / `retryableCodes` / `backoff`) | 全部仍合法 |
+| `models[].reasoningEfforts` | 0.3.0 起不再写入(由官方「模型」页维护) |
 
-上游「模型」页在 0.2.1 中为自定义供应商的每个模型提供 Reasoning levels(`models[].reasoningEfforts`)编辑,但仍**刻意**不提供供应商级推理强度、重试策略与 Developer 角色控件(推理等级属于按模型的能力,而供应商级控件只能被设成部分模型会拒绝的值)。本插件补的正是这些供应商级策略;补默认思考等级时,已单独配置过的模型保持原样。
-
-English: Verified against dsh 0.1.5-rc.2, 0.2.0-rc.2, 0.2.1-rc.2 and 0.2.1-rc.3 — every slot, service, event, transport call, client-module protocol field, and settings-schema field this plugin uses is unchanged; from 0.2.1 the stock Models page edits per-model reasoningEfforts, so this plugin only fills models that have no explicit level map. `engines.dsh` declares the supported DSH range.
+上游「模型」页在 0.2.1 中为自定义供应商的每个模型提供 Reasoning levels(`models[].reasoningEfforts`)编辑,但仍**刻意**不提供供应商级推理强度、重试策略与 Developer 角色控件(推理等级属于按模型的能力,而供应商级控件只能被设成部分模型会拒绝的值)。本插件补的正是这些供应商级策略;模型级等级完全交给上游,避免覆盖模型自身的能力声明。
 
 ## 重试语义
 
@@ -106,6 +112,6 @@ English: Verified against dsh 0.1.5-rc.2, 0.2.0-rc.2, 0.2.1-rc.2 and 0.2.1-rc.3 
 | `package.json` | `dsh.bundle.patch`(bundle 层声明)+ `dsh.client`(浏览器端 roster) |
 | `cordis.patch.yml` | 一行 Loader 条目,URL `/plugins/dsh-ui-provider-policy/client.js` 由包名派生 |
 | `lib/index.js` | 服务端 no-op 入口 |
-| `lib/client.js` | 面板本体:注册 `settings.section` 插槽,读写 `llm-pi-ai` 命名空间,内置重试预览 SVG |
+| `lib/client.js` | 面板本体:注册 `settings.section` 插槽;纯函数拼装供应商级 ops、重试预览 SVG、行 / 分段控件与注入式样式表 |
 | `install.cmd` | Windows 双击即装的启动器(纯 ASCII,任何代码页下解析一致) |
 | `install.ps1` | 安装本体(PowerShell 5.1+,UTF-8 带 BOM,中文界面;Win10/11 自带,无额外依赖) |
