@@ -1,7 +1,7 @@
 {
   "name": "dsh-ui-provider-policy",
   "description": "Dedicated Settings section for pi-ai provider policy: default reasoning, retry strategy (standard/aggressive) with a live retry preview chart, and developer-role compat — provider-level fields the stock Models page omits.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

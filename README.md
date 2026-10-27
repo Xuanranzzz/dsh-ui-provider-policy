@@ -5,7 +5,7 @@ DeepSeek Harness (dsh) 插件:在 WebUI 设置里新增一个专属的「供应�
 - **全局供应商策略**:一套「默认推理强度 + 重试策略 + Developer 角色」,保存时应用到**所有** OpenAI 兼容(pi-ai)供应商及其全部模型(不再按供应商/按模型分别配置)
 - **默认推理强度**(off / minimal / low / medium / high / xhigh / max,7 级,另可留空 = 供应商默认)—— 决定模型默认打开的推理等级;对话里仍可逐次选择
 - **重试策略选择**:
-  - **标准**:重试次数可调;沿用各供应商自己的可重试错误码与退避参数(没有策略时补全量 6 码含 QUOTA 与默认退避)
+  - **标准**:重试次数可调;沿用各供应商自己的可重试错误码与退避参数(没有策略时补全量 6 码含 QUOTA 与默认退避;若退避仍是「激进」预设则恢复宿主默认 2s/60s)
   - **激进**:重试次数**锁定 1000 次**(输入框禁用,不可调整),退避固定为 **1s → 2s → 4s → 上限 5s**,并关闭随机抖动
 - **重试预览(函数图,自适配)**:按当前策略与次数绘制 dsh **真实**的退避函数 —— 横轴是重试次数、纵轴是该次重试的等待时间,曲线下面积即累计等待;坐标轴单位(ms / s / min / h)、网格与采样点随参数自动缩放(上千次重试自动抽样,不会画出 1000 个点),并标出「第 N 次起 X(封顶)」的拐点与累计总时长
 - **Developer 角色三态**(自动 / 启用 / 禁用)
@@ -15,13 +15,18 @@ DeepSeek Harness (dsh) 插件:在 WebUI 设置里新增一个专属的「供应�
 
 所有改动通过 `settings.mutate` 以路径级 ops 只写入 `llm-pi-ai` 命名空间内的供应商级策略字段(`reasoning` / `retryPolicy` / `compat.supportsDeveloperRole`),不触碰 `models` 与任何其他命名空间;面板数据在 `settings/document-updated` 推送时自动刷新(有未保存编辑时不打扰)。插件不改 dsh 安装树内任何文件,更新 dsh 后无需重打补丁。
 
-English: A DeepSeek Harness (dsh) plugin that adds a dedicated "Provider Policy" section to the WebUI Settings, exposing the provider-level pi-ai fields the stock Models page omits: one global policy (default reasoning + retry strategy + developer-role compat) applied to every OpenAI-compatible (pi-ai) provider and all of its models. The retry strategy is either "standard" (editable count; each provider keeps its own backoff) or "aggressive" (count locked at 1000, waits 1s/2s/4s then a 5s cap, jitter off), and a self-scaling inline SVG preview plots the very backoff function the host runs. Since 0.3.0 the plugin **never writes model rows**: per-model reasoning levels are edited on the stock Models page (available since dsh 0.2.1), so the panel only writes provider-level policy fields.
+English: A DeepSeek Harness (dsh) plugin that adds a dedicated "Provider Policy" section to the WebUI Settings, exposing the provider-level pi-ai fields the stock Models page omits: one global policy (default reasoning + retry strategy + developer-role compat) applied to every OpenAI-compatible (pi-ai) provider and all of its models. The retry strategy is either "standard" (editable count; each provider keeps its own backoff, while a backoff left on the aggressive preset is restored to the host defaults) or "aggressive" (count locked at 1000, waits 1s/2s/4s then a 5s cap, jitter off), and a self-scaling inline SVG preview plots the very backoff function the host runs. Since 0.3.0 the plugin **never writes model rows**: per-model reasoning levels are edited on the stock Models page (available since dsh 0.2.1), so the panel only writes provider-level policy fields.
 
 ## 0.3.0 变更(重要)
 
 - 移除「模型默认开启思考」:过去保存时会为没有 `reasoningEfforts` 的模型补齐全量等级,让对话里的思考等级菜单常驻。dsh 0.2.1 起官方「模型」页已支持按模型**自定义推理等级**(开关 + 任意等级/取值行),这份补全不再必要,且会覆盖模型自身的能力声明。
 - 现在保存**只写供应商级字段**,`models` 数组原样保留。历史上已被补全的模型不会自动清理:需要清除时到「模型」页把该模型的「推理等级」开关关掉(或删掉对应行)即可;不清除也仍可正常工作。
 - 面板重构:策略拼装抽成纯函数 `policyOps`(只产出供应商级路径),重试预览的数学生成、样式表、行 / 控件 / 卡片组件分层;视觉对齐原生设置页。
+
+## 0.3.1 修复
+
+- **标准策略保存后被识别回激进**:标准策略此前会保留「激进」预设留下的退避(1s/5s、0 抖动)和 1000 次重试,重新加载时又命中激进判定。现在标准策略保存时会把仍是激进预设的退避恢复为宿主默认(初始 2s / 上限 60s),重试次数草稿也从标准默认的 10 起算;各供应商自定义过的退避仍原样保留。
+- **重试预览在切换策略时不刷新**:标准模式此前按旧激进退避绘图,切换后曲线看起来毫无变化。现在预览始终绘制「这次保存将写入的参数」,切换标准/激进会立即更新次数、退避与累计等待。
 
 ## 安装
 
@@ -77,7 +82,7 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 
 已在 **dsh 0.2.1-rc.2 / 0.2.1-rc.3**(DSH 官方桌面端自带运行时)上核对:逐包比对 npm 产物并实测挂载,本插件依赖的插槽 / 服务 / 事件 / 客户端模块协议与 `llm-pi-ai` schema(供应商级 `reasoning`、`retryPolicy`、`compat.supportsDeveloperRole`,`models[].reasoningEfforts` 仍为 7 级)全部未变;`package.json` 声明 `engines.dsh: ">=0.1.7-rc.2 <0.3.0"`(0.2.1 起兼容性检查优先读取该区间,未声明时才回退到 `peerDependencies`)。
 
-**0.3.0** 于 **2026-10-27** 在 **dsh 0.2.1-rc.3** 桌面端实机回归:设置分区正常显示、读值正确、保存链路成功;`cordis.patch.yml` 保存前后逐字节相同(策略未变),且保存不再写 `models`。上游「模型」页已提供按模型自定义推理等级(Reasoning levels)的开关与行编辑器,因此插件移除了原先的等级补全逻辑。
+**0.3.0** 于 **2026-10-27** 在 **dsh 0.2.1-rc.3** 桌面端实机回归:设置分区正常显示、读值正确、保存链路成功;`cordis.patch.yml` 保存前后逐字节相同(策略未变),且保存不再写 `models`。上游「模型」页已提供按模型自定义推理等级(Reasoning levels)的开关与行编辑器,因此插件移除了原先的等级补全逻辑。**0.3.1** 同日修复标准模式保存后回落激进、切换策略时预览不刷新两个问题,并完成上述回归。
 
 | 本插件依赖 | 0.2.1-rc.3 |
 | --- | --- |
@@ -100,7 +105,7 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 
 | 策略 | 写入的 retryPolicy | 实际等待 |
 | --- | --- | --- |
-| 标准 | `mode: normal` + 你的次数,保留各供应商原有 `retryableCodes` / `backoff`(缺失时补 6 码与 `2000/60000`) | 例如 2000/60000:2s、4s、8s、16s、32s、之后每次 1min |
+| 标准 | `mode: normal` + 你的次数,保留各供应商原有 `retryableCodes` / `backoff`(缺失时补 6 码与 `2000/60000`;仍是激进预设时恢复 `2000/60000`) | 例如 2000/60000:2s、4s、8s、16s、32s、之后每次 1min |
 | 激进 | `mode: normal` + `maxRetries: 1000` + `backoff: { initialDelayMs: 1000, maxDelayMs: 5000, jitterRatio: 0 }` | 1s、2s、4s、之后每次 5s(1000 次累计约 1.4 小时) |
 
 「激进」把抖动设为 0,是为了让等待严格等于 1s / 2s / ……;标准策略不写 `jitterRatio`,沿用宿主默认(±10%),预览图按标称值绘制并在图下注明。
