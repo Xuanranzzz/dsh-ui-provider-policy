@@ -24,6 +24,13 @@ English: A DeepSeek Harness (dsh) plugin that adds a dedicated "Provider Policy"
 - 现在保存**只写供应商级字段**,`models` 数组原样保留。历史上已被补全的模型不会自动清理:需要清除时到「模型」页把该模型的「推理等级」开关关掉(或删掉对应行)即可;不清除也仍可正常工作。
 - 面板重构:策略拼装抽成纯函数 `policyOps`(只产出供应商级路径),重试预览的数学生成、样式表、行 / 控件 / 卡片组件分层;视觉对齐原生设置页。
 
+## 0.4.2 修复:推理下拉对齐原生设计语言
+
+- 「默认推理强度」不再自绘菜单,改用 dsh 原生客户端种子包 `@deepseek-ai/dsh-client-ui-primitives` 的 **Menu** 组件(与「通用设置 → 权限/语言」等原生下拉是同一个组件),因此菜单圆角(16px 面板 / 12px 选项)、半透明材质、elevation 描边、选中勾、字体(选项 13/20)与深色/浅色配色全部与原生一致,不再有色差。
+- 触发按钮也换成原生设置行的选择器规格:36px 高、`--dsw-radius-md`(12px)、`--dsw-alias-bg-module-platform` 底色、hover `--dsw-alias-interactive-bg-hover`、字号 14/22、内边距 0 14px、间距 12px,并使用原生 `IconChevronDownOutlineRegular` 图标。
+- 行文字排版同步原生设置行:标题 14/22、说明 12/18、间距 4px;面板在 900px 高度窗口内仍完整显示保存栏。
+- 新增客户端依赖注入声明 `@deepseek-ai/dsh-client-ui-primitives`(该种子自 0.2.0-rc.2 起随 Web 前端提供,故 `engines.dsh` 下限同步提到 0.2.0-rc.2)。
+
 ## 0.4.1 修复:深色模式下的推理强度下拉框
 
 - 「默认推理强度」原本使用原生 `<select>`;它的选项弹层不受页面主题控制,深色模式下会白底白字、偶尔闪黑。现改为完全自绘的主题下拉菜单,复用原生菜单面板 token(`--dsw-menu-surface-fill` + `--dsw-menu-backdrop-filter` + `--dsw-elevation-prominent`),浅色/深色都与应用一致。
@@ -94,9 +101,9 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 
 已在 **dsh 0.2.0-rc.2**(DSH 官方桌面端自带的运行时)上核对:桌面端仍提供本插件依赖的 `settings.section` 插槽、`configForms` / `settingsSchema` / `remote.settings` 服务与 `window.__ModuleLoader__.load({id, factory})` 协议,插件在其中照常挂载(桌面端安装见上一节)。
 
-已在 **dsh 0.2.1-rc.2 / 0.2.1-rc.3**(DSH 官方桌面端自带运行时)上核对:逐包比对 npm 产物并实测挂载,本插件依赖的插槽 / 服务 / 事件 / 客户端模块协议与 `llm-pi-ai` schema(供应商级 `reasoning`、`retryPolicy`、`compat.supportsDeveloperRole`,`models[].reasoningEfforts` 仍为 7 级)全部未变;`package.json` 声明 `engines.dsh: ">=0.1.7-rc.2 <0.3.0"`(0.2.1 起兼容性检查优先读取该区间,未声明时才回退到 `peerDependencies`)。
+已在 **dsh 0.2.1-rc.2 / 0.2.1-rc.3**(DSH 官方桌面端自带运行时)上核对:逐包比对 npm 产物并实测挂载,本插件依赖的插槽 / 服务 / 事件 / 客户端模块协议与 `llm-pi-ai` schema(供应商级 `reasoning`、`retryPolicy`、`compat.supportsDeveloperRole`,`models[].reasoningEfforts` 仍为 7 级)全部未变;`package.json` 声明 `engines.dsh: ">=0.2.0-rc.2 <0.3.0"`(0.4.2 起下拉库依赖该范围)(0.2.1 起兼容性检查优先读取该区间,未声明时才回退到 `peerDependencies`)。
 
-**0.3.0** 于 **2026-10-27** 在 **dsh 0.2.1-rc.3** 桌面端实机回归:设置分区正常显示、读值正确、保存链路成功;`cordis.patch.yml` 保存前后逐字节相同(策略未变),且保存不再写 `models`。上游「模型」页已提供按模型自定义推理等级(Reasoning levels)的开关与行编辑器,因此插件移除了原先的等级补全逻辑。**0.3.1** 同日修复标准模式保存后回落激进、切换策略时预览不刷新两个问题,并完成上述回归。 **0.4.0** 于 **2026-10-30** 在 **dsh 0.2.1-rc.5** 桌面端实机回归:重试提示三档切换即时生效、已结束的重试行全部收起、"默认"档恢复原生 64 行历史记录且不误恢复 Chat 自身隐藏的 22 行(逐行保存/恢复原 hidden 状态)。 **0.4.1** 于同日核对深色主题:`<html style="color-scheme: dark">` 下自绘菜单背景为 `rgba(67,69,74,0.45)` + 原生菜单模糊阴影,不再出现白底白字的原生弹层。
+**0.3.0** 于 **2026-10-27** 在 **dsh 0.2.1-rc.3** 桌面端实机回归:设置分区正常显示、读值正确、保存链路成功;`cordis.patch.yml` 保存前后逐字节相同(策略未变),且保存不再写 `models`。上游「模型」页已提供按模型自定义推理等级(Reasoning levels)的开关与行编辑器,因此插件移除了原先的等级补全逻辑。**0.3.1** 同日修复标准模式保存后回落激进、切换策略时预览不刷新两个问题,并完成上述回归。 **0.4.0** 于 **2026-10-30** 在 **dsh 0.2.1-rc.5** 桌面端实机回归:重试提示三档切换即时生效、已结束的重试行全部收起、"默认"档恢复原生 64 行历史记录且不误恢复 Chat 自身隐藏的 22 行(逐行保存/恢复原 hidden 状态)。 **0.4.1** 于同日核对深色主题。**0.4.2** 更换为原生 Menu 组件后实测:插件选择器与「通用设置 → 权限」选择器 computed style 完全一致(36px / 12px 圆角 / 14-22 字体 / rgb(53,54,56) 底色);两侧菜单面板同为 `role=menu` + `data-menu-material` 原生结构,圆角 16px、padding 4px、阴影与 13/20 选项字体逐项相同。
 
 | 本插件依赖 | 0.2.1-rc.3 |
 | --- | --- |
@@ -107,7 +114,7 @@ PATH 里的普通 `dsh` / `npx @deepseek-ai/dsh` 会被明确拒绝(`profile "de
 | `remote.settings.mutate(ns, ops, revision)` → `{ ok, error: { code, message } }`,含 `settings/conflict` | 不变 |
 | `remote.$on("settings/document-updated")` | 不变 |
 | 客户端模块协议 `window.__ModuleLoader__.load({ id, factory })` / `dsh.client` 字段 | 不变 |
-| 平台 seed word `react` / `react/jsx-runtime` | 不变 |
+| 平台 seed word `react` / `react/jsx-runtime` / `@deepseek-ai/dsh-client-ui-primitives`(0.4.2 起 Menu 下拉) | 不变 |
 | 写入的 `llm-pi-ai` schema:`reasoning`、`compat.supportsDeveloperRole`、`retryPolicy`(`mode` / `maxRetries` / `retryableCodes` / `backoff`) | 全部仍合法 |
 | `models[].reasoningEfforts` | 0.3.0 起不再写入(由官方「模型」页维护) |
 

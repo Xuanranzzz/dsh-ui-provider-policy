@@ -1,7 +1,7 @@
 {
   "name": "dsh-ui-provider-policy",
   "description": "Dedicated Settings section for pi-ai provider policy (default reasoning, retry strategy with live preview, developer-role compat) plus a browser-local retry-notice display mode that keeps an unstable API from flooding the chat.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -17,6 +17,7 @@
     "client": {
       "platform": "web",
       "inject": [
+        "@deepseek-ai/dsh-client-ui-primitives",
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-api-remotes"
@@ -24,7 +25,7 @@
     }
   },
   "engines": {
-    "dsh": ">=0.1.7-rc.2 <0.3.0"
+    "dsh": ">=0.2.0-rc.2 <0.3.0"
   },
   "license": "MIT"
 }
