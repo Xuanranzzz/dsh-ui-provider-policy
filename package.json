@@ -1,7 +1,7 @@
 {
   "name": "dsh-ui-provider-policy",
   "description": "Dedicated Settings section for pi-ai provider policy (default reasoning, retry strategy with live preview, developer-role compat) plus a browser-local retry-notice display mode that keeps an unstable API from flooding the chat.",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
